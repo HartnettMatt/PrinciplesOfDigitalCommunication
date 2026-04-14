@@ -10,5 +10,6 @@ dependencies = [
     "numpy>=2.4.3",
     "pip>=26.0.1",
     "pypandoc>=1.17",
+    "ruff>=0.15.10",
     "scipy>=1.17.1",
 ]

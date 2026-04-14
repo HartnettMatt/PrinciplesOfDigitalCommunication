@@ -12,3 +12,6 @@ wheels/
 # ipynb outputs
 *.eps
 ignored/
+
+# MacOS
+.DS_Store
