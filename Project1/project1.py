@@ -147,7 +147,7 @@ best_beta = None
 best_pulse = None
 best_deg = None
 
-print("Searching...")
+print("Coarse Searching...")
 total = len(alphas) * len(betas)
 done = 0
 
@@ -158,8 +158,8 @@ for a in alphas:
             ok, _ = check_mask(u)
             if not ok:
                 continue
-            ok2, deg = check_isi(u, tb)
-            if not ok2:
+            ok, deg = check_isi(u, tb)
+            if not ok:
                 continue
             if tb < best_tb:
                 best_tb = tb
@@ -169,7 +169,8 @@ for a in alphas:
                 best_deg = deg
             break  # smallest passing tb for this (a,b)
 
-print(f"\nalpha = {best_alpha:.4f}")
+print("\n---- Coarse Search Results: ----")
+print(f"alpha = {best_alpha:.4f}")
 print(f"beta  = {best_beta:.4f}")
 print(f"t_b   = {best_tb * 1e6:.2f} us")
 print(f"Max symbol rate = {1 / best_tb:.0f} symbols/s")
@@ -177,11 +178,13 @@ print(f"ISI degradation = {best_deg:.4f} dB")
 # %%
 # Fine search around best coarse result
 
-print("Fine search...")
-da, db = 0.06, 0.06
-af = np.linspace(max(0.01, best_alpha - da), min(1, best_alpha + da), 40)
-bf = np.linspace(max(0.01, best_beta - db), min(1, best_beta + db), 40)
-tbf = np.linspace(max(2e-6, best_tb - 1.5e-6), best_tb, 100)
+print("Fine searching...")
+da = (alphas[1] - alphas[0])
+af = np.linspace((best_alpha-da), (best_alpha+da), 60)
+db = (betas[1] - betas[0])
+bf = np.linspace((best_beta - db), (best_beta + db), 60)
+dtb = (tbs[1] - tbs[0]) 
+tbf = np.linspace((best_tb - dtb), (best_tb + dtb), 300)
 
 for a in af:
     for b in bf:
@@ -190,8 +193,8 @@ for a in af:
             ok, _ = check_mask(u)
             if not ok:
                 continue
-            ok2, deg = check_isi(u, tb)
-            if not ok2:
+            ok, deg = check_isi(u, tb)
+            if not ok:
                 continue
             if tb < best_tb:
                 best_tb = tb
@@ -201,63 +204,13 @@ for a in af:
                 best_deg = deg
             break
 
-print(
-    f"  -> a={best_alpha:.4f} b={best_beta:.4f} "
-    f"tb={best_tb * 1e6:.3f}us rate={1 / best_tb:.0f}"
-)
-
-# %%
-# Polish with scipy optimizer — try from several starting points
-
-print("Optimizing...")
-
-
-def obj(x):
-    a, b, tb_us = x
-    tb = tb_us * 1e-6
-    if not (0.01 < a < 1 and 0.01 < b < 1 and 1 < tb_us < 40):
-        return 100.0
-    u = build_pulse(t, tb, a, b)
-    ok, _ = check_mask(u)
-    if not ok:
-        return 100.0
-    ok2, _ = check_isi(u, tb)
-    if not ok2:
-        return 100.0
-    return tb_us
-
-
-rng = np.random.default_rng(42)
-best_obj = best_tb * 1e6
-for trial in range(20):
-    if trial == 0:
-        x0 = [best_alpha, best_beta, best_tb * 1e6]
-    else:
-        x0 = [
-            best_alpha + rng.uniform(-0.04, 0.04),
-            best_beta + rng.uniform(-0.04, 0.04),
-            best_tb * 1e6 + rng.uniform(-0.3, 0.05),
-        ]
-    res = minimize(
-        obj,
-        x0,
-        method="Nelder-Mead",
-        options={"maxiter": 5000, "xatol": 1e-5, "fatol": 1e-7},
-    )
-    if res.fun < best_obj:
-        best_obj = res.fun
-        best_alpha = res.x[0]
-        best_beta = res.x[1]
-        best_tb = res.x[2] * 1e-6
-
-best_pulse = build_pulse(t, best_tb, best_alpha, best_beta)
-_, best_deg = check_isi(best_pulse, best_tb)
-
-print(f"\nalpha = {best_alpha:.4f}")
+print("\n---- Fine Search Results: ----")
+print(f"alpha = {best_alpha:.4f}")
 print(f"beta  = {best_beta:.4f}")
 print(f"t_b   = {best_tb * 1e6:.2f} us")
 print(f"Max symbol rate = {1 / best_tb:.0f} symbols/s")
 print(f"ISI degradation = {best_deg:.4f} dB")
+
 
 # %%
 # Plot: u(t) time domain
